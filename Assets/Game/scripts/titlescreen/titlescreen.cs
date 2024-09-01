@@ -11,8 +11,7 @@ public class titlescreen : MonoBehaviour
     public void playGame(){
         
         
-            //GameManager.Instance.HP = 3;
-            //GameManager.Instance.score = 0;
+            
         
         SceneManager.LoadScene("level");
     }   

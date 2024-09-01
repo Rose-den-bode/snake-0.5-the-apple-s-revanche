@@ -1,40 +1,102 @@
+using System.Collections;
 using UnityEngine;
 
 public class SpawnManager : MonoBehaviour
 {
     public GameObject enemyPrefab;   // Het vijand prefab dat je wilt spawnen
-    public int numberOfEnemies = 5;  // Aantal vijanden om te spawnen
-    public float minSpawnRadius = 15f;  // Minimale straal van het spawngebied
-    public float maxSpawnRadius = 20f;  // Maximale straal van het spawngebied
+    public float maxActiveEnemies;  // Maximaal aantal vijanden dat tegelijk actief mag zijn
+    public float totalEnemiesToSpawn;  // Totaal aantal vijanden dat moet worden gespawnt
+    public float spawnInterval;  // Tijd tussen het spawnen van vijanden
+
+    private int currentSpawnedEnemies;  // Huidige aantal gespawnde vijanden
+    public int activeEnemies;  // Huidige aantal actieve vijanden
+    public GameObject upgrades;
+    private GameObject playerObject;        // Verwijzing naar de speler
+    private GameObject weaponObject;        // Verwijzing naar de weapon
+
+
+
 
     void Start()
     {
-        SpawnEnemies();
+        maxActiveEnemies = 3f;
+        totalEnemiesToSpawn = 5f;
+        spawnInterval = 2f;
+        currentSpawnedEnemies = 0;
+        activeEnemies = 0;
+
+        
+        playerObject = GameObject.FindWithTag("Player");
+        weaponObject = GameObject.FindWithTag("Weapon");
+        NewWave();
     }
 
-    void SpawnEnemies()
+    void Update()
     {
-        Vector3 spawnCenter = transform.position; // Positie van het SpawnManager GameObject
-
-        for (int i = 0; i < numberOfEnemies; i++)
+        if (currentSpawnedEnemies >= totalEnemiesToSpawn && activeEnemies == 0 && !upgrades.activeSelf)
         {
-            // Genereer een willekeurige hoek in radialen
-            float angle = Random.Range(0f, Mathf.PI * 2);
+            Player player = playerObject.GetComponent<Player>();
+            Weapon weapon = weaponObject.GetComponent<Weapon>();
 
-            // Kies een willekeurige afstand binnen het opgegeven bereik
-            float radius = Random.Range(minSpawnRadius, maxSpawnRadius);
-            
-            // Bepaal de positie binnen de cirkel in 2D (x, y)
-            Vector2 spawnPos = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius;
+            if (player != null && player.SpriteRenderer != null)
+            {
+                player.SpriteRenderer.enabled = !player.SpriteRenderer.enabled;
+                weapon.spriteRenderer.enabled = !weapon.spriteRenderer.enabled;
+            }
 
-            // Zet de 2D positie om naar een 3D Vector, maar gebruik alleen x en y
-            Vector3 spawnPosition = new Vector3(spawnPos.x, spawnPos.y, 0) + spawnCenter;
-
-            // Debugging informatie
-            Debug.Log($"Spawning enemy at: {spawnPosition}");
-
-            // Spawn de vijand
-            Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+            if (upgrades != null)
+            {
+                upgrades.SetActive(!upgrades.activeSelf);
+            }
         }
     }
+
+    IEnumerator SpawnEnemies()
+    {
+        while (currentSpawnedEnemies < totalEnemiesToSpawn)
+        {
+            if (activeEnemies < maxActiveEnemies)
+            {
+                SpawnEnemy();
+                currentSpawnedEnemies++;
+            }
+            Debug.Log(activeEnemies);
+            yield return new WaitForSeconds(spawnInterval);
+        }
+        
+    }
+
+        void SpawnEnemy()
+    {
+    // Genereer een willekeurige hoek en positie binnen de cirkel
+        float angle = Random.Range(0f, Mathf.PI * 2);
+        Vector2 spawnPos = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * Random.Range(15f, 20f);
+        Vector3 spawnPosition = new Vector3(spawnPos.x, spawnPos.y, 0f) + transform.position;
+
+    // Instantiate het vijand prefab
+        GameObject newEnemy = Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+
+    // Verkrijg het Enemy script van het nieuwe vijand object
+        Enemy enemyScript = newEnemy.GetComponent<Enemy>();
+
+    // Geef de SpawnManager referentie door aan het Enemy script
+        enemyScript.spawnManager = this;
+
+    // Verhoog het aantal actieve vijanden
+        activeEnemies++;
+    }
+
+    public void NewWave()
+    {
+        currentSpawnedEnemies = 0;
+        StartCoroutine(SpawnEnemies());
+    }
+
+
+    public void NotifyEnemyDestroyed()
+    {
+        activeEnemies -= 1;
+    }
+
+    
 }
